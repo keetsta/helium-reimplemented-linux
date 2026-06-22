@@ -45,18 +45,24 @@ runs:
             git ls-tree "$1" helium-chromium | awk '{print $3}'
         }
 
-        LAST_TAG=$(git describe --tags --abbrev=0)
-        COMMIT_THEN=$(submodule_commit_at "$LAST_TAG")
-        COMMIT_NOW=$(submodule_commit_at HEAD)
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
         {
           printf 'Changes since last build:\n### helium-linux\n```\n'
-          git log --oneline "$LAST_TAG..HEAD"
-          printf '```\n\n### helium-chromium\n```\n'
-          git -C helium-chromium log --oneline "$COMMIT_THEN..$COMMIT_NOW"
+          if [ -n "$LAST_TAG" ]; then
+            git log --oneline "$LAST_TAG..HEAD"
+            COMMIT_THEN=$(submodule_commit_at "$LAST_TAG")
+            COMMIT_NOW=$(submodule_commit_at HEAD)
+            printf '```\n\n### helium-chromium\n```\n'
+            git -C helium-chromium log --oneline "$COMMIT_THEN..$COMMIT_NOW"
+          else
+            git log --oneline
+            printf '```\n\n### helium-chromium\n```\n'
+            git -C helium-chromium log --oneline -20
+          fi
           printf '```\n\n---\n\n'
           printf 'See [this GitHub Actions Run](%s) for the [Workflow file](%s/workflow) used '
-          printf 'as well as the build logs and artifacts\n' "$GH_RUN_HREF" "$GH_RUN_HREF" 
+          printf 'as well as the build logs and artifacts\n' "$GH_RUN_HREF" "$GH_RUN_HREF"
         } | tee ./github_release_note.md
 
     - name: Create Release
