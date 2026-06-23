@@ -14,6 +14,7 @@ set -euo pipefail
 
 NODE_VERSION="${NODE_VERSION:-22}"
 SCCACHE_VERSION="${SCCACHE_VERSION:-0.10.0}"
+APPIMAGETOOL_VERSION="${APPIMAGETOOL_VERSION:-1.9.0}"
 
 if [ "$(id -u)" != 0 ]; then
   echo "re-running under sudo..."; exec sudo -E "$0" "$@"
@@ -58,6 +59,14 @@ curl --fail -Lo /tmp/sccache.tar.gz \
 tar --strip-components=1 -xzf /tmp/sccache.tar.gz -C /usr/bin --wildcards '*/sccache'
 rm -f /tmp/sccache.tar.gz
 chmod +x /usr/bin/sccache
+
+# Packaging deps: scripts/package.sh lives in package/docker-package.sh's image
+# upstream, so install what it needs for a native run (tar.xz + AppImage).
+echo "==> packaging deps + appimagetool ${APPIMAGETOOL_VERSION}"
+apt-get -y install binutils elfutils desktop-file-utils file imagemagick wget xz-utils pv jq zsync gnupg
+curl --fail -Lo "/usr/bin/appimagetool" \
+  "https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-${_m}.AppImage"
+chmod +x /usr/bin/appimagetool
 
 echo
 echo "==> done. node $(node --version 2>/dev/null), sccache $(sccache --version 2>/dev/null | head -1)"

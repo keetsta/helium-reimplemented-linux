@@ -19,6 +19,9 @@ _self="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 _src="$_self/build/src"
 _out="$_src/out/Default"
 
+# appimagetool is itself an AppImage; WSL has no FUSE, so run it extracted.
+export APPIMAGE_EXTRACT_AND_RUN=1
+
 if [ ! -d "$_src" ] || [ ! -f "$_out/args.gn" ]; then
   echo "error: no prepared build tree found at:" >&2
   echo "    $_out/args.gn" >&2
