@@ -113,7 +113,8 @@ ___helium_substitution() {
 }
 
 ___helium_build() {
-    cd "$_src_dir" && ninja -C out/Default chrome chromedriver
+    # NINJA_JOBS caps parallel jobs to avoid OOM on low-RAM hosts; unset = default.
+    cd "$_src_dir" && ninja -C out/Default ${NINJA_JOBS:+-j "$NINJA_JOBS"} chrome chromedriver
 }
 
 ___helium_run() {

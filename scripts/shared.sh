@@ -221,5 +221,7 @@ gn_gen() {
 
 build() {
     cd "${_src_dir}"
-    ninja -C out/Default chrome chromedriver
+    # NINJA_JOBS caps parallel compile jobs to avoid OOM (each clang++ peaks
+    # ~1-1.5GB; default cores+2 can exceed low-RAM hosts). Unset = ninja default.
+    ninja -C out/Default ${NINJA_JOBS:+-j "$NINJA_JOBS"} chrome chromedriver
 }

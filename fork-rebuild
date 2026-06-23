@@ -47,7 +47,8 @@ echo
   # Regenerate build files in case GN args / BUILD.gn changed, then compile.
   # gn was bootstrapped into out/Default by fork-build.
   ./out/Default/gn gen out/Default --fail-on-unused-args
-  ninja -C out/Default chrome chromedriver
+  # NINJA_JOBS caps parallel jobs to avoid OOM on low-RAM hosts; unset = default.
+  ninja -C out/Default ${NINJA_JOBS:+-j "$NINJA_JOBS"} chrome chromedriver
 
   # Repackage into tar.xz + AppImage (MAKE_DEB=1 also makes a .deb).
   cd "$_self"
