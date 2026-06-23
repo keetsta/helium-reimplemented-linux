@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# fork-build — full, clean RELEASE build of the Helium fork for Linux.
+#
+# Produces tar.xz + AppImage in helium-reimplemented-linux/build/release/.
+# Everything (Chromium source, its toolchain, downloads) stays under build/.
+#
+# This is the heavy one: it downloads ~full Chromium source and compiles it.
+# Expect a long build and 100+ GB of disk. The repo's flags.linux.gn already
+# sets is_official_build=true / is_debug=false, so this is a release build.
+#
+# Usage:
+#   ./fork-build              # tarball release build (host arch)
+#   ./fork-build -c           # use a source-tree clone instead of the tarball
+#   ./fork-build -c --pgo     # PGO release (implies clone; x86_64 only)
+#   ARCH=arm64 ./fork-build   # cross-build (ARCH is read by the build scripts)
+#
+# Args are forwarded verbatim to scripts/build.sh (-c clone, --pgo). After a
+# successful build it packages and writes build/.fork-sync-marker so fork-sync
+# can later apply patch deltas without a full rebuild.
+set -euo pipefail
+
+_self="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+cd "$_self"
+
+echo "==> fork-build: full clean release build"
+echo "    repo  : $_self"
+echo "    python: $(command -v python3)  ($(python3 --version 2>&1))"
+echo "    node  : $(command -v node 2>/dev/null || echo MISSING)  ($(node --version 2>/dev/null || echo '-'))"
+echo "    arch  : ${ARCH:-host ($(uname -m))}"
+echo "    args  : ${*:-<none>}"
+echo
+
+# Log everything to build/logs/ (inside the folder) while still showing it live.
+_log_dir="$_self/build/logs"
+mkdir -p "$_log_dir"
+_log_file="$_log_dir/fork-build-$(date +%Y%m%d-%H%M%S).log"
+ln -sf "$(basename "$_log_file")" "$_log_dir/latest.log"
+echo "    log   : $_log_file"
+echo
+
+# pipefail (set above) makes the build's exit status survive the tee pipe.
+{
+  # build.sh: wipes out/, fetches + patches the source (guarded by stamps so a
+  # re-run reuses an existing tree), writes release gn args (PGO with --pgo),
+  # then compiles chrome + chromedriver.
+  ./scripts/build.sh "$@"
+
+  # package the built tree into tar.xz + AppImage (set MAKE_DEB=1 for a .deb).
+  ./scripts/package.sh
+} 2>&1 | tee "$_log_file"
+
+# Stamp the sync marker so fork-sync can apply patch deltas later.
+# CORE = helium-chromium submodule HEAD, PLATFORM = this repo HEAD.
+_core_sha="$(git -C "$_self/helium-chromium" rev-parse HEAD)"
+_platform_sha="$(git -C "$_self" rev-parse HEAD)"
+printf 'CORE_SHA=%s\nPLATFORM_SHA=%s\n' "$_core_sha" "$_platform_sha" \
+    > "$_self/build/.fork-sync-marker"
+
+echo
+echo "==> done. Artifacts in: $_self/build/release/"
+echo "    marker: build/.fork-sync-marker (core $_core_sha)"
