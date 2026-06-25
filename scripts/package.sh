@@ -98,16 +98,19 @@ done
 export APPIMAGETOOL_APP_NAME="Helium"
 export VERSION="$_version"
 
-# check whether CI GPG secrets are available
+# only sign the AppImage when GPG secrets are available; otherwise appimagetool
+# aborts at the signing step before generating the .zsync update file
+_appimagetool_sign_args=()
 if [[ -n "${GPG_PRIVATE_KEY:-}" && -n "${GPG_PASSPHRASE:-}" ]]; then
     echo "$GPG_PRIVATE_KEY" | gpg --batch --import --passphrase "$GPG_PASSPHRASE"
     export APPIMAGETOOL_SIGN_PASSPHRASE="$GPG_PASSPHRASE"
+    _appimagetool_sign_args+=(--sign)
 fi
 
 appimagetool \
     -u "$_update_info" \
     "$_app_dir" \
-    "$_release_name.AppImage" "$@" &
+    "$_release_name.AppImage" "${_appimagetool_sign_args[@]}" &
 popd
 wait
 
